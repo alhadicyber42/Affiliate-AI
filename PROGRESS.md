@@ -1,44 +1,44 @@
 # Affiliate AI - Development Progress
 
-## ✅ COMPLETED (Session 1)
+## ✅ COMPLETED
 
-### 1. Database Schema & Setup
-- ✅ Created complete Supabase schema (`backend/database/schema.sql`)
+### Phase 1: Foundation
+- ✅ Database Schema & Setup
 - ✅ Tables: profiles, products, scripts, script_modules, videos, analytics, ab_tests
 - ✅ Row Level Security (RLS) policies for all tables
 - ✅ Auto-create profile trigger on user signup
 - ✅ Indexes for performance optimization
-
-### 2. Backend API Integration
-- ✅ Product extraction with Deepseek AI
-- ✅ Save extracted products to Supabase
-- ✅ Get user products endpoint
-- ✅ Delete product endpoint
-- ✅ Generate script with AI endpoint
-- ✅ Save scripts to database
-- ✅ Get user scripts endpoint
-- ✅ Delete script endpoint
-- ✅ Regenerate script module endpoint
-
-### 3. Frontend Integration
-- ✅ Updated productApi to use backend
-- ✅ Updated scriptApi to use backend
-- ✅ Updated useProducts hook with auth
-- ✅ Updated useScripts hook with auth
-- ✅ Connected Products view to backend
-- ✅ Connected Scripts view to backend
-- ✅ Added "Generate Script" button functionality
-- ✅ Product extraction saves to database
-- ✅ Script generation saves to database
-
-### 4. Features Working
+- ✅ Backend API Integration
+- ✅ Frontend Integration
 - ✅ User authentication with Supabase
-- ✅ Product extraction from URLs (Shopee, Tokopedia, TikTok, Lazada)
-- ✅ AI-powered product analysis
-- ✅ Script generation with multiple frameworks
-- ✅ Script module regeneration
 - ✅ Data persistence in Supabase
-- ✅ User-specific data isolation (RLS)
+
+### Phase 2: Core Features
+- ✅ **Product Extraction with Puppeteer** (NEW!)
+  - Real data scraping from Shopee, Tokopedia, TikTok
+  - Accurate prices, ratings, images, sold counts
+  - AI enhancement for category, features, USP
+  - Fallback to AI if scraping fails
+- ✅ **Script Generation with AI**
+  - Multiple frameworks (AIDA, PAS, BAB, PASTOR)
+  - Platform-specific (TikTok, Instagram, YouTube)
+  - Tone customization
+- ✅ **Video Generation** (NEW!)
+  - 3 video styles: Faceless, AI Avatar, Real Footage
+  - Processing status tracking
+  - Video management
+- ✅ **Credits System** (NEW!)
+  - Automatic deduction (10/20/50 credits)
+  - Real-time display
+  - Insufficient credits handling
+  - Auto-refresh after operations
+
+### Phase 3: In Progress
+- 🔜 Analytics Dashboard
+- 🔜 A/B Testing
+- 🔜 Templates Library
+- 🔜 Trending Discovery
+- 🔜 Marketplace
 
 ## 🔧 NEXT PRIORITIES
 
