@@ -4,7 +4,7 @@ import { productApi } from '@/services/mockApi';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useProducts = () => {
-  const { user } = useAuth();
+  const { user, refreshCredits } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +35,7 @@ export const useProducts = () => {
     try {
       const product = await productApi.extractFromUrl(url, user.id);
       await loadProducts();
+      await refreshCredits(); // Refresh credits after extraction
       return product;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to extract product');

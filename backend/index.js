@@ -74,6 +74,25 @@ app.post('/api/extract-product', async (req, res) => {
     try {
         console.log('🔍 Extracting product from:', url);
 
+        // Check user credits
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('credits')
+            .eq('id', userId)
+            .single();
+
+        if (profileError) throw profileError;
+
+        const EXTRACT_COST = 10; // 10 credits per extraction
+        if (profile.credits < EXTRACT_COST) {
+            return res.status(402).json({ 
+                success: false, 
+                message: 'Insufficient credits',
+                required: EXTRACT_COST,
+                available: profile.credits
+            });
+        }
+
         let platform = 'unknown';
         if (url.includes('shopee')) platform = 'shopee';
         else if (url.includes('tokopedia')) platform = 'tokopedia';
@@ -138,7 +157,20 @@ app.post('/api/extract-product', async (req, res) => {
 
         if (dbError) throw dbError;
 
-        res.json({ success: true, data: product });
+        // Deduct credits
+        const { error: creditError } = await supabase
+            .from('profiles')
+            .update({ credits: profile.credits - EXTRACT_COST })
+            .eq('id', userId);
+
+        if (creditError) throw creditError;
+
+        res.json({ 
+            success: true, 
+            data: product,
+            creditsUsed: EXTRACT_COST,
+            creditsRemaining: profile.credits - EXTRACT_COST
+        });
     } catch (error) {
         console.error('Extraction Error:', error);
         res.status(500).json({ success: false, message: 'Failed to extract product', error: error.message });
@@ -193,6 +225,25 @@ app.post('/api/generate-script', async (req, res) => {
     }
 
     try {
+        // Check user credits
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('credits')
+            .eq('id', userId)
+            .single();
+
+        if (profileError) throw profileError;
+
+        const SCRIPT_COST = 20; // 20 credits per script
+        if (profile.credits < SCRIPT_COST) {
+            return res.status(402).json({ 
+                success: false, 
+                message: 'Insufficient credits',
+                required: SCRIPT_COST,
+                available: profile.credits
+            });
+        }
+
         // Get product details
         const { data: product, error: productError } = await supabase
             .from('products')
@@ -279,13 +330,26 @@ Return ONLY a JSON object with this EXACT structure:
 
         if (modulesError) throw modulesError;
 
+        // Deduct credits
+        const { error: creditError } = await supabase
+            .from('profiles')
+            .update({ credits: profile.credits - SCRIPT_COST })
+            .eq('id', userId);
+
+        if (creditError) throw creditError;
+
         // Return complete script with modules
         const completeScript = {
             ...script,
             modules: modules.sort((a, b) => a.order_index - b.order_index),
         };
 
-        res.json({ success: true, data: completeScript });
+        res.json({ 
+            success: true, 
+            data: completeScript,
+            creditsUsed: SCRIPT_COST,
+            creditsRemaining: profile.credits - SCRIPT_COST
+        });
     } catch (error) {
         console.error('Generate Script Error:', error);
         res.status(500).json({ success: false, message: 'Failed to generate script', error: error.message });
@@ -397,6 +461,152 @@ Return ONLY the new content text, no JSON, no formatting.`;
     } catch (error) {
         console.error('Regenerate Module Error:', error);
         res.status(500).json({ success: false, message: 'Failed to regenerate module', error: error.message });
+    }
+});
+
+// Generate Video Endpoint
+app.post('/api/generate-video', async (req, res) => {
+    const { userId, scriptId, style } = req.body;
+
+    if (!userId || !scriptId || !style) {
+        return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+
+    try {
+        // Check user credits
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('credits')
+            .eq('id', userId)
+            .single();
+
+        if (profileError) throw profileError;
+
+        const VIDEO_COST = 50; // 50 credits per video
+        if (profile.credits < VIDEO_COST) {
+            return res.status(402).json({ 
+                success: false, 
+                message: 'Insufficient credits',
+                required: VIDEO_COST,
+                available: profile.credits
+            });
+        }
+
+        // Get script details
+        const { data: script, error: scriptError } = await supabase
+            .from('scripts')
+            .select('*, script_modules(*)')
+            .eq('id', scriptId)
+            .single();
+
+        if (scriptError) throw scriptError;
+
+        // Create video record with processing status
+        const { data: video, error: videoError } = await supabase
+            .from('videos')
+            .insert({
+                user_id: userId,
+                script_id: scriptId,
+                title: `Video: ${script.title}`,
+                style,
+                status: 'processing',
+                duration: script.total_duration,
+                resolution: '1080p',
+                thumbnail_url: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&q=80',
+            })
+            .select()
+            .single();
+
+        if (videoError) throw videoError;
+
+        // Deduct credits
+        const { error: creditError } = await supabase
+            .from('profiles')
+            .update({ credits: profile.credits - VIDEO_COST })
+            .eq('id', userId);
+
+        if (creditError) throw creditError;
+
+        // Simulate video generation (in production, this would trigger actual video generation)
+        // For now, we'll mark it as completed after a delay
+        setTimeout(async () => {
+            await supabase
+                .from('videos')
+                .update({ 
+                    status: 'completed',
+                    video_url: `https://example.com/videos/${video.id}.mp4`
+                })
+                .eq('id', video.id);
+        }, 5000);
+
+        res.json({ 
+            success: true, 
+            data: video,
+            creditsUsed: VIDEO_COST,
+            creditsRemaining: profile.credits - VIDEO_COST
+        });
+    } catch (error) {
+        console.error('Generate Video Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to generate video', error: error.message });
+    }
+});
+
+// Get User Videos
+app.get('/api/videos/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const { data: videos, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        res.json({ success: true, data: videos });
+    } catch (error) {
+        console.error('Get Videos Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get videos', error: error.message });
+    }
+});
+
+// Delete Video
+app.delete('/api/videos/:videoId', async (req, res) => {
+    const { videoId } = req.params;
+
+    try {
+        const { error } = await supabase
+            .from('videos')
+            .delete()
+            .eq('id', videoId);
+
+        if (error) throw error;
+
+        res.json({ success: true, message: 'Video deleted' });
+    } catch (error) {
+        console.error('Delete Video Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete video', error: error.message });
+    }
+});
+
+// Get User Profile (with credits)
+app.get('/api/profile/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        if (error) throw error;
+
+        res.json({ success: true, data: profile });
+    } catch (error) {
+        console.error('Get Profile Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get profile', error: error.message });
     }
 });
 

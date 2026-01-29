@@ -4,7 +4,7 @@ import { scriptApi } from '@/services/mockApi';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useScripts = () => {
-  const { user } = useAuth();
+  const { user, refreshCredits } = useAuth();
   const [scripts, setScripts] = useState<Script[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +40,7 @@ export const useScripts = () => {
     try {
       const script = await scriptApi.generateScript(user.id, productId, framework, platform, tone);
       await loadScripts();
+      await refreshCredits(); // Refresh credits after generation
       return script;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate script');

@@ -8,6 +8,7 @@ interface AuthContextType extends AuthState {
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
+  refreshCredits: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -158,6 +159,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }));
   };
 
+  const refreshCredits = async () => {
+    if (!state.user?.id) return;
+    
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', state.user.id)
+        .single();
+      
+      if (profile) {
+        updateUser({ credits: profile.credits });
+      }
+    } catch (error) {
+      console.error('Failed to refresh credits:', error);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -166,6 +185,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         register,
         logout,
         updateUser,
+        refreshCredits,
       }}
     >
       {children}

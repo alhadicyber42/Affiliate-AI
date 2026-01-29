@@ -246,41 +246,40 @@ export const scriptApi = {
 };
 
 export const videoApi = {
-  getVideos: (): Video[] => {
-    const saved = localStorage.getItem('affiliator_videos');
-    return saved ? JSON.parse(saved) : [];
+  getVideos: async (userId: string): Promise<Video[]> => {
+    try {
+      const response = await axios.get(`${API_URL}/api/videos/${userId}`);
+      return response.data.data || [];
+    } catch (error) {
+      console.error('Get videos error:', error);
+      return [];
+    }
   },
 
-  generateVideo: async (scriptId: string, style: string): Promise<Video> => {
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // We would normally fetch the script title here
-    const scripts = scriptApi.getScripts();
-    const script = scripts.find(s => s.id === scriptId);
-    const title = script ? `Video: ${script.title}` : `Video for Script ${scriptId}`;
-
-    const newVideo: Video = {
-      id: Math.random().toString(36).substr(2, 9),
-      title,
-      scriptId,
-      style: style as any,
-      status: 'completed',
-      duration: '00:35',
-      resolution: '1080p',
-      thumbnailUrl: `https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&q=80`,
-      videoUrl: '#',
-      createdAt: new Date().toISOString(),
-    };
-
-    const videos = videoApi.getVideos();
-    localStorage.setItem('affiliator_videos', JSON.stringify([...videos, newVideo]));
-
-    return newVideo;
+  generateVideo: async (userId: string, scriptId: string, style: string): Promise<Video> => {
+    try {
+      const response = await axios.post(`${API_URL}/api/generate-video`, {
+        userId,
+        scriptId,
+        style,
+      });
+      return response.data.data;
+    } catch (error: any) {
+      if (error.response?.status === 402) {
+        throw new Error(`Insufficient credits. Need ${error.response.data.required}, have ${error.response.data.available}`);
+      }
+      console.error('Generate video error:', error);
+      throw error;
+    }
   },
 
-  deleteVideo: (id: string) => {
-    const videos = videoApi.getVideos();
-    localStorage.setItem('affiliator_videos', JSON.stringify(videos.filter(v => v.id !== id)));
+  deleteVideo: async (id: string) => {
+    try {
+      await axios.delete(`${API_URL}/api/videos/${id}`);
+    } catch (error) {
+      console.error('Delete video error:', error);
+      throw error;
+    }
   },
 };
 

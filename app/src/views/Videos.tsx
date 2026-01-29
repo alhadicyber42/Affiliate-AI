@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Video, Search, Trash2, Download, Play, Clock, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useScripts } from '@/hooks/useScripts';
-import { videoApi } from '@/services/mockApi';
-import type { Video as VideoType } from '@/types';
+import { useVideos } from '@/hooks/useVideos';
 import { toast } from 'sonner';
 
 const videoStyles = [
@@ -14,12 +13,7 @@ const videoStyles = [
 
 export default function Videos() {
   const { scripts } = useScripts();
-  const [videos, setVideos] = useState<VideoType[]>([]);
-
-  useEffect(() => {
-    const data = videoApi.getVideos();
-    setVideos(data);
-  }, []);
+  const { videos, generateVideo, deleteVideo, isLoading } = useVideos();
   const [showGenerator, setShowGenerator] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,21 +34,26 @@ export default function Videos() {
 
     setIsGenerating(true);
     try {
-      const video = await videoApi.generateVideo(selectedScript, selectedStyle);
-      setVideos([...videos, video]);
-      toast.success('Video generated successfully!');
+      const video = await generateVideo(selectedScript, selectedStyle);
+      toast.success('Video generation started!', {
+        description: `Credits used: 50. Video will be ready in 3-5 minutes.`
+      });
       setShowGenerator(false);
-    } catch (error) {
-      toast.error('Failed to generate video');
+      setSelectedScript('');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to generate video');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleDelete = (id: string) => {
-    videoApi.deleteVideo(id);
-    setVideos(videos.filter(v => v.id !== id));
-    toast.success('Video deleted');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteVideo(id);
+      toast.success('Video deleted');
+    } catch (error) {
+      toast.error('Failed to delete video');
+    }
   };
 
   const getStatusIcon = (status: string) => {
