@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Script, ScriptModule } from '@/types';
-import { scriptApi } from '@/services/mockApi';
+import { scriptApi } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useScripts = () => {

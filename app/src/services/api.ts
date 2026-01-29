@@ -1,3 +1,6 @@
+// Real API Service - No Mock Data
+// All data comes from backend/database
+
 import axios from 'axios';
 import { supabase } from '@/lib/supabase';
 import type {
@@ -13,6 +16,9 @@ import type {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+// ============================================
+// AUTHENTICATION API (Real - Supabase)
+// ============================================
 export const authApi = {
   async login(email: string, password: string): Promise<User> {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -23,7 +29,6 @@ export const authApi = {
     if (error) throw error;
     if (!data.user) throw new Error('No user returned');
 
-    // Fetch user profile
     const { data: profile } = await supabase
       .from('profiles')
       .select('*')
@@ -42,21 +47,15 @@ export const authApi = {
   },
 
   async register(email: string, password: string, name: string): Promise<User> {
-    // Sign up the user
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: {
-          name,
-        },
-      },
+      options: { data: { name } },
     });
 
     if (error) throw error;
     if (!data.user) throw new Error('No user returned');
 
-    // Create profile
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({
@@ -67,9 +66,7 @@ export const authApi = {
         plan: 'free',
       });
 
-    if (profileError) {
-      console.error('Profile creation error:', profileError);
-    }
+    if (profileError) console.error('Profile creation error:', profileError);
 
     return {
       id: data.user.id,
@@ -86,58 +83,11 @@ export const authApi = {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   },
-
-  getCurrentUser(): User | null {
-    // This will be called on mount, but we'll handle it differently
-    // in AuthContext using supabase.auth.getSession()
-    return null;
-  },
-
-  updateUser(_updates: Partial<User>): User {
-    // This will be implemented later with actual Supabase update
-    throw new Error('Not implemented - use Supabase directly');
-  },
-
-  async loginWithGoogle(): Promise<User> {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    if (error) throw error;
-
-    // The actual user data will be available after redirect
-    throw new Error('Redirecting to Google...');
-  },
 };
 
-export const analyticsApi = {
-  async getAnalytics(userId: string) {
-    try {
-      const response = await axios.get(`${API_URL}/api/analytics/${userId}`);
-      return response.data.data;
-    } catch (error) {
-      console.error('Get analytics error:', error);
-      return {
-        totalViews: 0,
-        totalCTR: 0,
-        totalConversions: 0,
-        totalRevenue: 0,
-        scriptsCount: 0,
-        videosCount: 0,
-        productsCount: 0,
-      };
-    }
-  },
-};
-
-export const initializeMockData = () => {
-  // No longer needed - all data from database
-  console.log('Using real data from database');
-};
-
+// ============================================
+// PRODUCTS API (Real - Backend + Puppeteer)
+// ============================================
 export const productApi = {
   getProducts: async (userId: string) => {
     try {
@@ -179,6 +129,9 @@ export const productApi = {
   },
 };
 
+// ============================================
+// SCRIPTS API (Real - Backend + AI)
+// ============================================
 export const scriptApi = {
   getScripts: async (userId: string): Promise<Script[]> => {
     try {
@@ -235,11 +188,6 @@ export const scriptApi = {
     }
   },
 
-  updateScript: async (id: string, updates: Partial<Script>) => {
-    // TODO: Implement update script endpoint
-    console.log('Update script:', id, updates);
-  },
-
   deleteScript: async (id: string) => {
     try {
       await axios.delete(`${API_URL}/api/scripts/${id}`);
@@ -250,6 +198,9 @@ export const scriptApi = {
   },
 };
 
+// ============================================
+// VIDEOS API (Real - Backend)
+// ============================================
 export const videoApi = {
   getVideos: async (userId: string): Promise<Video[]> => {
     try {
@@ -288,69 +239,32 @@ export const videoApi = {
   },
 };
 
-export const trendingApi = {
-  getTrending: async (): Promise<TrendingItem[]> => {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    return [
-      {
-        id: '1',
-        type: 'sound',
-        name: 'Chill Lofi Beat 2026',
-        platform: 'TikTok',
-        popularity: 95,
-        growth: '+150%',
-        category: 'Music',
-      },
-      {
-        id: '2',
-        type: 'hashtag',
-        name: '#AffiliateMarketingTips',
-        platform: 'Instagram',
-        popularity: 88,
-        growth: '+85%',
-        category: 'Education',
-      },
-      {
-        id: '3',
-        type: 'product',
-        name: 'Wireless Ergonomic Mouse',
-        platform: 'Shopee',
-        popularity: 92,
-        growth: '+210%',
-        category: 'Electronics',
-      },
-      {
-        id: '4',
-        type: 'sound',
-        name: 'Funny Laugh Track',
-        platform: 'TikTok',
-        popularity: 98,
-        growth: '+320%',
-        category: 'Comedy',
-      },
-      {
-        id: '5',
-        type: 'hashtag',
-        name: '#ShopeeHaul2026',
-        platform: 'Shopee',
-        popularity: 85,
-        growth: '+45%',
-        category: 'Shopping',
-      },
-      {
-        id: '6',
-        type: 'product',
-        name: 'Minimalist Water Bottle',
-        platform: 'TikTok',
-        popularity: 78,
-        growth: '+120%',
-        category: 'Lifestyle',
-      },
-    ];
+// ============================================
+// ANALYTICS API (Real - Backend)
+// ============================================
+export const analyticsApi = {
+  async getAnalytics(userId: string) {
+    try {
+      const response = await axios.get(`${API_URL}/api/analytics/${userId}`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Get analytics error:', error);
+      return {
+        totalViews: 0,
+        totalCTR: 0,
+        totalConversions: 0,
+        totalRevenue: 0,
+        scriptsCount: 0,
+        videosCount: 0,
+        productsCount: 0,
+      };
+    }
   },
 };
 
+// ============================================
+// AB TESTING API (Real - Backend)
+// ============================================
 export const abTestApi = {
   getTests: async (userId: string): Promise<ABTest[]> => {
     try {
@@ -377,106 +291,38 @@ export const abTestApi = {
   },
 };
 
+// ============================================
+// TRENDING API (External/Public Data)
+// ============================================
+// Note: This is external data, not user-specific
+// TODO: Integrate with real trending APIs (TikTok Trends, Google Trends)
+export const trendingApi = {
+  getTrending: async (): Promise<TrendingItem[]> => {
+    // Placeholder for external trending data
+    return [];
+  },
+};
+
+// ============================================
+// MARKETPLACE API (External/Public Data)
+// ============================================
+// Note: This represents available brand partnerships
+// TODO: Integrate with affiliate networks
 export const marketplaceApi = {
   getBrands: async (): Promise<MarketplaceBrand[]> => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return [
-      {
-        id: '1',
-        name: 'GlowSkincare Official',
-        category: 'beauty',
-        logo: '/avatar-1.png',
-        description: 'Premium Korean skincare products with proven results',
-        commission: '15%',
-        avgOrder: 'Rp 250K',
-        conversionRate: '4.2%',
-        rating: 4.8,
-        campaigns: 12,
-        creators: 340,
-        isVerified: true,
-        isPopular: true,
-        products: ['Serum Vitamin C', 'Moisturizer', 'Sunscreen'],
-      },
-      {
-        id: '2',
-        name: 'HijabChic Indonesia',
-        category: 'fashion',
-        logo: '/avatar-3.png',
-        description: 'Modern hijab fashion for the stylish Muslimah',
-        commission: '12%',
-        avgOrder: 'Rp 180K',
-        conversionRate: '3.8%',
-        rating: 4.7,
-        campaigns: 8,
-        creators: 520,
-        isVerified: true,
-        isPopular: true,
-        products: ['Hijab Instan', 'Gamis', 'Tunik'],
-      },
-      {
-        id: '3',
-        name: 'TechGear ID',
-        category: 'tech',
-        logo: '/avatar-2.png',
-        description: 'Quality phone accessories and gadgets at affordable prices',
-        commission: '10%',
-        avgOrder: 'Rp 120K',
-        conversionRate: '5.1%',
-        rating: 4.6,
-        campaigns: 15,
-        creators: 280,
-        isVerified: true,
-        isPopular: false,
-        products: ['Phone Case', 'Charger', 'Earbuds'],
-      },
-    ];
+    // Placeholder for marketplace data
+    return [];
   },
 };
 
+// ============================================
+// TEMPLATES API (Platform Data)
+// ============================================
+// Note: These are pre-built templates provided by platform
+// TODO: Store in database for admin management
 export const templateApi = {
   getTemplates: async (): Promise<Template[]> => {
-    await new Promise(resolve => setTimeout(resolve, 600));
-    return [
-      {
-        id: '1',
-        name: 'Skincare Routine Review',
-        category: 'beauty',
-        description: 'Perfect for reviewing skincare products with before/after format',
-        framework: 'AIDA',
-        platform: 'TikTok',
-        rating: 4.8,
-        uses: 2340,
-        preview: 'Masih bingung skincare routine? Ini rahasia kulit glowing...',
-        tags: ['skincare', 'glowing', 'routine'],
-        isNew: true,
-      },
-      {
-        id: '2',
-        name: 'Hijab Styling Tutorial',
-        category: 'fashion',
-        description: 'Showcase different hijab styles with product recommendations',
-        framework: 'BAB',
-        platform: 'Instagram',
-        rating: 4.9,
-        uses: 1890,
-        preview: '5 gaya hijab simple tapi elegan untuk daily...',
-        tags: ['hijab', 'tutorial', 'style'],
-        isNew: false,
-      },
-      {
-        id: '3',
-        name: 'Phone Case Drop Test',
-        category: 'tech',
-        description: 'Drop test format for phone accessories and cases',
-        framework: 'PAS',
-        platform: 'TikTok',
-        rating: 4.7,
-        uses: 3200,
-        preview: 'Drop test case murah vs mahal, hasilnya MENGEJUTKAN!',
-        tags: ['phone', 'case', 'review'],
-        isNew: true,
-      },
-    ];
+    // Placeholder for templates
+    return [];
   },
 };
-

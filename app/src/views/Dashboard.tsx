@@ -1,19 +1,7 @@
-import { useEffect } from 'react';
-import { 
-  TrendingUp, 
-  Eye, 
-  MousePointer, 
-  DollarSign,
-  FileText,
-  Video,
-  Package,
-  Sparkles,
-  ArrowRight
-} from 'lucide-react';
+import { TrendingUp, Eye, MousePointer, DollarSign, FileText, Video, Package, Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAnalytics } from '@/hooks/useAnalytics';
-import { initializeMockData } from '@/services/mockApi';
 
 interface DashboardProps {
   onViewChange: (view: string) => void;
@@ -22,10 +10,6 @@ interface DashboardProps {
 export default function Dashboard({ onViewChange }: DashboardProps) {
   const { user } = useAuth();
   const { analytics, isLoading } = useAnalytics();
-
-  useEffect(() => {
-    initializeMockData();
-  }, []);
 
   const stats = [
     { 

@@ -667,6 +667,134 @@ app.get('/api/profile/:userId', async (req, res) => {
     }
 });
 
+// Get Analytics
+app.get('/api/analytics/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        // Get counts from database
+        const { count: productsCount } = await supabase
+            .from('products')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId);
+
+        const { count: scriptsCount } = await supabase
+            .from('scripts')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId);
+
+        const { count: videosCount } = await supabase
+            .from('videos')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId);
+
+        // Get analytics data
+        const { data: analyticsData } = await supabase
+            .from('analytics')
+            .select('*')
+            .eq('user_id', userId);
+
+        // Calculate totals
+        const totalViews = analyticsData?.reduce((sum, a) => sum + (a.views || 0), 0) || 0;
+        const totalClicks = analyticsData?.reduce((sum, a) => sum + (a.clicks || 0), 0) || 0;
+        const totalConversions = analyticsData?.reduce((sum, a) => sum + (a.conversions || 0), 0) || 0;
+        const totalRevenue = analyticsData?.reduce((sum, a) => sum + (a.revenue || 0), 0) || 0;
+        const totalCTR = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(2) : 0;
+
+        res.json({
+            success: true,
+            data: {
+                totalViews,
+                totalCTR: parseFloat(totalCTR),
+                totalConversions,
+                totalRevenue,
+                productsCount: productsCount || 0,
+                scriptsCount: scriptsCount || 0,
+                videosCount: videosCount || 0,
+            }
+        });
+    } catch (error) {
+        console.error('Get Analytics Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get analytics', error: error.message });
+    }
+});
+
+// Get AB Tests
+app.get('/api/ab-tests/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const { data: tests, error } = await supabase
+            .from('ab_tests')
+            .select('*, ab_test_variants(*)')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Format tests with variants
+        const formattedTests = tests.map(test => ({
+            ...test,
+            variants: test.ab_test_variants || []
+        }));
+
+        res.json({ success: true, data: formattedTests });
+    } catch (error) {
+        console.error('Get AB Tests Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get AB tests', error: error.message });
+    }
+});
+
+// Create AB Test
+app.post('/api/ab-tests', async (req, res) => {
+    const { userId, name, variants } = req.body;
+
+    if (!userId || !name || !variants || variants.length < 2) {
+        return res.status(400).json({ success: false, message: 'Missing required fields or insufficient variants' });
+    }
+
+    try {
+        // Create test
+        const { data: test, error: testError } = await supabase
+            .from('ab_tests')
+            .insert({
+                user_id: userId,
+                name,
+                status: 'draft',
+                start_date: new Date().toISOString().split('T')[0],
+            })
+            .select()
+            .single();
+
+        if (testError) throw testError;
+
+        // Create variants
+        const variantsData = variants.map((v) => ({
+            test_id: test.id,
+            name: v.name,
+            script: v.script,
+        }));
+
+        const { data: createdVariants, error: variantsError } = await supabase
+            .from('ab_test_variants')
+            .insert(variantsData)
+            .select();
+
+        if (variantsError) throw variantsError;
+
+        res.json({
+            success: true,
+            data: {
+                ...test,
+                variants: createdVariants
+            }
+        });
+    } catch (error) {
+        console.error('Create AB Test Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to create AB test', error: error.message });
+    }
+});
+
 // Start Server
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);

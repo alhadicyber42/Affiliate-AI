@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Video } from '@/types';
-import { videoApi } from '@/services/mockApi';
+import { videoApi } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useVideos = () => {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Product } from '@/types';
-import { productApi } from '@/services/mockApi';
+import { productApi } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useProducts = () => {
