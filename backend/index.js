@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const OpenAI = require('openai');
+const productScraper = require('./services/productScraper');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -99,29 +100,61 @@ app.post('/api/extract-product', async (req, res) => {
         else if (url.includes('tiktok')) platform = 'tiktok';
         else if (url.includes('lazada')) platform = 'lazada';
 
-        const prompt = `Act as an expert affiliate marketer. I will give you a product URL from ${platform}. 
-        URL: ${url}
+        console.log('🕷️  Scraping product data with Puppeteer...');
         
-        Analyze this URL and provide detailed product information in STRICT JSON format.
-        If you don't know the exact product, provide a highly professional 'sample' extraction based on the URL context.
-        
-        JSON Structure:
-        {
-            "name": "Product Name",
-            "description": "Short catchy description",
-            "price": 100000,
-            "originalPrice": 150000,
-            "discount": 33,
-            "rating": 4.8,
-            "soldCount": "1.2k",
-            "images": ["https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800"],
-            "platform": "${platform}",
-            "category": "Category",
-            "keyFeatures": ["Feature 1", "Feature 2"],
-            "viralScore": 8.5,
-            "usp": ["Unique Selling Point 1", "Unique Selling Point 2"],
-            "contentAngles": ["Review", "Unboxing", "Comparison"]
-        }`;
+        // Scrape product data with Puppeteer
+        let scrapedData;
+        try {
+            scrapedData = await productScraper.scrapeProduct(url);
+            console.log('✅ Scraping successful:', scrapedData.name);
+        } catch (scrapeError) {
+            console.warn('⚠️  Scraping failed, falling back to AI:', scrapeError.message);
+            scrapedData = null;
+        }
+
+        // Use AI to enhance/analyze the scraped data
+        const prompt = scrapedData 
+            ? `Analyze this product data and enhance it with marketing insights:
+            
+Product Data:
+- Name: ${scrapedData.name}
+- Price: Rp ${scrapedData.price}
+- Rating: ${scrapedData.rating}
+- Sold: ${scrapedData.soldCount}
+- Platform: ${platform}
+
+Provide enhanced data in STRICT JSON format:
+{
+    "category": "Product Category",
+    "keyFeatures": ["Feature 1", "Feature 2", "Feature 3"],
+    "viralScore": 8.5,
+    "usp": ["Unique Selling Point 1", "Unique Selling Point 2"],
+    "contentAngles": ["Review", "Unboxing", "Comparison"],
+    "description": "Catchy marketing description"
+}`
+            : `Act as an expert affiliate marketer. I will give you a product URL from ${platform}. 
+URL: ${url}
+
+Analyze this URL and provide detailed product information in STRICT JSON format.
+Provide a professional sample extraction based on the URL context.
+
+JSON Structure:
+{
+    "name": "Product Name",
+    "description": "Short catchy description",
+    "price": 100000,
+    "originalPrice": 150000,
+    "discount": 33,
+    "rating": 4.8,
+    "soldCount": "1.2k",
+    "images": ["https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800"],
+    "platform": "${platform}",
+    "category": "Category",
+    "keyFeatures": ["Feature 1", "Feature 2"],
+    "viralScore": 8.5,
+    "usp": ["Unique Selling Point 1", "Unique Selling Point 2"],
+    "contentAngles": ["Review", "Unboxing", "Comparison"]
+}`;
 
         const completion = await deepseek.chat.completions.create({
             messages: [{ role: "user", content: prompt }],
@@ -131,26 +164,47 @@ app.post('/api/extract-product', async (req, res) => {
 
         const aiData = JSON.parse(completion.choices[0].message.content);
 
+        // Merge scraped data with AI enhancements
+        const finalData = scrapedData ? {
+            name: scrapedData.name,
+            description: aiData.description || scrapedData.description,
+            price: scrapedData.price,
+            original_price: scrapedData.originalPrice,
+            discount: scrapedData.discount,
+            rating: scrapedData.rating,
+            sold_count: scrapedData.soldCount,
+            images: scrapedData.images,
+            platform: scrapedData.platform,
+            product_url: url,
+            category: aiData.category,
+            key_features: aiData.keyFeatures,
+            viral_score: aiData.viralScore,
+            usp: aiData.usp,
+            content_angles: aiData.contentAngles,
+        } : {
+            name: aiData.name,
+            description: aiData.description,
+            price: aiData.price,
+            original_price: aiData.originalPrice,
+            discount: aiData.discount,
+            rating: aiData.rating,
+            sold_count: aiData.soldCount,
+            images: aiData.images,
+            platform: aiData.platform,
+            product_url: url,
+            category: aiData.category,
+            key_features: aiData.keyFeatures,
+            viral_score: aiData.viralScore,
+            usp: aiData.usp,
+            content_angles: aiData.contentAngles,
+        };
+
         // Save to Supabase
         const { data: product, error: dbError } = await supabase
             .from('products')
             .insert({
                 user_id: userId,
-                name: aiData.name,
-                description: aiData.description,
-                price: aiData.price,
-                original_price: aiData.originalPrice,
-                discount: aiData.discount,
-                rating: aiData.rating,
-                sold_count: aiData.soldCount,
-                images: aiData.images,
-                platform: aiData.platform,
-                product_url: url,
-                category: aiData.category,
-                key_features: aiData.keyFeatures,
-                viral_score: aiData.viralScore,
-                usp: aiData.usp,
-                content_angles: aiData.contentAngles,
+                ...finalData
             })
             .select()
             .single();
@@ -165,11 +219,14 @@ app.post('/api/extract-product', async (req, res) => {
 
         if (creditError) throw creditError;
 
+        console.log('✅ Product saved to database');
+
         res.json({ 
             success: true, 
             data: product,
             creditsUsed: EXTRACT_COST,
-            creditsRemaining: profile.credits - EXTRACT_COST
+            creditsRemaining: profile.credits - EXTRACT_COST,
+            scrapingMethod: scrapedData ? 'puppeteer' : 'ai-fallback'
         });
     } catch (error) {
         console.error('Extraction Error:', error);
@@ -613,4 +670,17 @@ app.get('/api/profile/:userId', async (req, res) => {
 // Start Server
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
+});
+
+// Cleanup on exit
+process.on('SIGINT', async () => {
+    console.log('\n🛑 Shutting down gracefully...');
+    await productScraper.close();
+    process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+    console.log('\n🛑 Shutting down gracefully...');
+    await productScraper.close();
+    process.exit(0);
 });
