@@ -134,186 +134,114 @@ export const initializeMockData = () => {
 };
 
 export const productApi = {
-  getProducts: () => {
-    // Return empty array for now - can be populated with mock data
-    return [];
-  },
-
-  extractFromUrl: async (url: string) => {
+  getProducts: async (userId: string) => {
     try {
-      const response = await axios.post(`${API_URL}/api/extract-product`, { url });
-      const productData = response.data.data;
-
-      // Save for persistence
-      const saved = localStorage.getItem('affiliator_products');
-      const products = saved ? JSON.parse(saved) : [];
-      localStorage.setItem('affiliator_products', JSON.stringify([...products, productData]));
-
-      return productData;
+      const response = await axios.get(`${API_URL}/api/products/${userId}`);
+      return response.data.data || [];
     } catch (error) {
-      console.warn('Extraction failed, using mock fallback:', error);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const mockProduct = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: 'Sample Product (Fallback)',
-        description: 'Extracted from ' + url,
-        price: 99000,
-        originalPrice: 150000,
-        discount: 34,
-        rating: 4.5,
-        soldCount: '1.2k',
-        images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800'],
-        platform: 'shopee' as const,
-        productUrl: url,
-        category: 'Fashion',
-        keyFeatures: ['High Quality', 'Fast Shipping'],
-        viralScore: 8.5,
-        usp: ['Trending', 'Best Seller'],
-        contentAngles: ['Review', 'Unboxing'],
-        extractedAt: new Date().toISOString(),
-      };
-
-      const saved = localStorage.getItem('affiliator_products');
-      const products = saved ? JSON.parse(saved) : [];
-      localStorage.setItem('affiliator_products', JSON.stringify([...products, mockProduct]));
-
-      return mockProduct;
+      console.error('Get products error:', error);
+      return [];
     }
   },
 
-  deleteProduct: (id: string) => {
-    console.log('Deleting product:', id);
+  extractFromUrl: async (url: string, userId: string) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/extract-product`, { url, userId });
+      return response.data.data;
+    } catch (error) {
+      console.error('Extraction failed:', error);
+      throw error;
+    }
   },
 
-  getProductById: (id: string) => {
-    console.log('Getting product:', id);
-    return null;
+  deleteProduct: async (id: string) => {
+    try {
+      await axios.delete(`${API_URL}/api/products/${id}`);
+    } catch (error) {
+      console.error('Delete product error:', error);
+      throw error;
+    }
+  },
+
+  getProductById: async (id: string, userId: string) => {
+    try {
+      const products = await productApi.getProducts(userId);
+      return products.find((p: any) => p.id === id) || null;
+    } catch (error) {
+      console.error('Get product by ID error:', error);
+      return null;
+    }
   },
 };
 
 export const scriptApi = {
-  getScripts: (): Script[] => {
-    const saved = localStorage.getItem('affiliator_scripts');
-    return saved ? JSON.parse(saved) : [];
+  getScripts: async (userId: string): Promise<Script[]> => {
+    try {
+      const response = await axios.get(`${API_URL}/api/scripts/${userId}`);
+      return response.data.data || [];
+    } catch (error) {
+      console.error('Get scripts error:', error);
+      return [];
+    }
   },
 
-  getScriptById: (id: string): Script | null => {
-    const scripts = scriptApi.getScripts();
-    return scripts.find(s => s.id === id) || null;
+  getScriptById: async (id: string, userId: string): Promise<Script | null> => {
+    try {
+      const scripts = await scriptApi.getScripts(userId);
+      return scripts.find(s => s.id === id) || null;
+    } catch (error) {
+      console.error('Get script by ID error:', error);
+      return null;
+    }
   },
 
   generateScript: async (
+    userId: string,
     productId: string,
     framework: string,
     platform: string,
     tone: string
   ): Promise<Script> => {
     try {
-      const prompt = `Generate a viral short-form video script for an affiliate product.
-      Product: ${productId}
-      Framework: ${framework}
-      Platform: ${platform}
-      Tone: ${tone}
-      
-      Return ONLY a JSON object with this structure:
-      {
-        "title": "Script Title",
-        "modules": [
-          { "type": "hook", "content": "Viral hook here", "duration": "00:05" },
-          { "type": "problem", "content": "The problem it solves", "duration": "00:10" },
-          { "type": "solution", "content": "How it solves it", "duration": "00:15" },
-          { "type": "cta", "content": "Call to action", "duration": "00:05" }
-        ]
-      }`;
-
-      const response = await axios.post(`${API_URL}/api/generate-content`, { prompt });
-      const content = response.data.data;
-      const cleanJson = content.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(cleanJson);
-
-      const newScript: Script = {
-        id: Math.random().toString(36).substr(2, 9),
-        title: parsed.title,
+      const response = await axios.post(`${API_URL}/api/generate-script`, {
+        userId,
         productId,
-        framework: framework as any,
-        platform: platform as any,
-        tone: tone as any,
-        modules: parsed.modules.map((m: any, i: number) => ({
-          ...m,
-          id: `m${i}`,
-          order: i,
-        })),
-        totalDuration: "00:35",
-        score: 92,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      const scripts = scriptApi.getScripts();
-      localStorage.setItem('affiliator_scripts', JSON.stringify([...scripts, newScript]));
-      return newScript;
+        framework,
+        platform,
+        tone,
+      });
+      return response.data.data;
     } catch (error) {
-      console.warn('AI Generation failed, falling back to mock:', error);
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      const newScript: Script = {
-        id: Math.random().toString(36).substr(2, 9),
-        title: `Script for ${productId} (Mock)`,
-        productId,
-        framework: framework as any,
-        platform: platform as any,
-        tone: tone as any,
-        modules: [
-          { id: 'm1', type: 'hook', content: 'Did you know about this product?', duration: '00:05', order: 0 },
-          { id: 'm2', type: 'problem', content: 'Regular products are boring.', duration: '00:10', order: 1 },
-          { id: 'm3', type: 'solution', content: 'This one is actually amazing!', duration: '00:15', order: 2 },
-          { id: 'm4', type: 'cta', content: 'Check it out now!', duration: '00:05', order: 3 },
-        ],
-        totalDuration: '00:35',
-        score: 85,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      const scripts = scriptApi.getScripts();
-      localStorage.setItem('affiliator_scripts', JSON.stringify([...scripts, newScript]));
-      return newScript;
+      console.error('Generate script error:', error);
+      throw error;
     }
   },
 
   regenerateModule: async (scriptId: string, moduleId: string): Promise<ScriptModule> => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const scripts = scriptApi.getScripts();
-    const scriptIndex = scripts.findIndex(s => s.id === scriptId);
-
-    if (scriptIndex === -1) throw new Error('Script not found');
-
-    const moduleIndex = scripts[scriptIndex].modules.findIndex(m => m.id === moduleId);
-    if (moduleIndex === -1) throw new Error('Module not found');
-
-    const newContent = `Regenerated content for ${scripts[scriptIndex].modules[moduleIndex].type} at ${new Date().toLocaleTimeString()}`;
-
-    scripts[scriptIndex].modules[moduleIndex].content = newContent;
-    scripts[scriptIndex].updatedAt = new Date().toISOString();
-
-    localStorage.setItem('affiliator_scripts', JSON.stringify(scripts));
-
-    return scripts[scriptIndex].modules[moduleIndex];
-  },
-
-  updateScript: (id: string, updates: Partial<Script>) => {
-    const scripts = scriptApi.getScripts();
-    const index = scripts.findIndex(s => s.id === id);
-    if (index !== -1) {
-      scripts[index] = { ...scripts[index], ...updates, updatedAt: new Date().toISOString() };
-      localStorage.setItem('affiliator_scripts', JSON.stringify(scripts));
+    try {
+      const response = await axios.post(`${API_URL}/api/regenerate-module`, {
+        scriptId,
+        moduleId,
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Regenerate module error:', error);
+      throw error;
     }
   },
 
-  deleteScript: (id: string) => {
-    const scripts = scriptApi.getScripts();
-    localStorage.setItem('affiliator_scripts', JSON.stringify(scripts.filter(s => s.id !== id)));
+  updateScript: async (id: string, updates: Partial<Script>) => {
+    // TODO: Implement update script endpoint
+    console.log('Update script:', id, updates);
+  },
+
+  deleteScript: async (id: string) => {
+    try {
+      await axios.delete(`${API_URL}/api/scripts/${id}`);
+    } catch (error) {
+      console.error('Delete script error:', error);
+      throw error;
+    }
   },
 };
 

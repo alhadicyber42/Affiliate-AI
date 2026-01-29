@@ -1,16 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Script, ScriptModule } from '@/types';
 import { scriptApi } from '@/services/mockApi';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const useScripts = () => {
+  const { user } = useAuth();
   const [scripts, setScripts] = useState<Script[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadScripts = useCallback(() => {
-    const data = scriptApi.getScripts();
-    setScripts(data);
-  }, []);
+  const loadScripts = useCallback(async () => {
+    if (!user?.id) return;
+    
+    setIsLoading(true);
+    try {
+      const data = await scriptApi.getScripts(user.id);
+      setScripts(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load scripts');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     loadScripts();
@@ -22,11 +33,13 @@ export const useScripts = () => {
     platform: string,
     tone: string
   ): Promise<Script> => {
+    if (!user?.id) throw new Error('User not authenticated');
+    
     setIsLoading(true);
     setError(null);
     try {
-      const script = await scriptApi.generateScript(productId, framework, platform, tone);
-      loadScripts();
+      const script = await scriptApi.generateScript(user.id, productId, framework, platform, tone);
+      await loadScripts();
       return script;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate script');
@@ -40,7 +53,7 @@ export const useScripts = () => {
     setIsLoading(true);
     try {
       const module = await scriptApi.regenerateModule(scriptId, moduleId);
-      loadScripts();
+      await loadScripts();
       return module;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to regenerate module');
@@ -50,18 +63,23 @@ export const useScripts = () => {
     }
   };
 
-  const updateScript = (id: string, updates: Partial<Script>) => {
-    scriptApi.updateScript(id, updates);
-    loadScripts();
+  const updateScript = async (id: string, updates: Partial<Script>) => {
+    await scriptApi.updateScript(id, updates);
+    await loadScripts();
   };
 
-  const deleteScript = (id: string) => {
-    scriptApi.deleteScript(id);
-    loadScripts();
+  const deleteScript = async (id: string) => {
+    try {
+      await scriptApi.deleteScript(id);
+      await loadScripts();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete script');
+      throw err;
+    }
   };
 
   const getScriptById = (id: string): Script | null => {
-    return scriptApi.getScriptById(id);
+    return scripts.find(s => s.id === id) || null;
   };
 
   return {

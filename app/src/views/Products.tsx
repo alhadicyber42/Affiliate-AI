@@ -15,9 +15,18 @@ export default function Products() {
     p.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleDelete = (id: string) => {
-    deleteProduct(id);
-    toast.success('Product deleted');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteProduct(id);
+      toast.success('Product deleted');
+    } catch (error) {
+      toast.error('Failed to delete product');
+    }
+  };
+
+  const handleGenerateScript = (productId: string) => {
+    // Navigate to scripts page with product pre-selected
+    window.location.hash = `#scripts?product=${productId}`;
   };
 
   const getPlatformColor = (platform: string) => {
@@ -128,6 +137,7 @@ export default function Products() {
                 <div className="flex gap-2">
                   <Button
                     size="sm"
+                    onClick={() => handleGenerateScript(product.id)}
                     className="flex-1 bg-gradient-to-r from-purple to-cyan hover:opacity-90 text-white"
                   >
                     <Sparkles className="w-3 h-3 mr-1" />

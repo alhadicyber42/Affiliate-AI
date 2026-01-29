@@ -33,10 +33,19 @@ export default function ProductExtractor() {
     toast.success('Copied to clipboard');
   };
 
-  const handleDelete = (id: string) => {
-    deleteProduct(id);
-    setExtractedProduct(null);
-    toast.success('Product deleted');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteProduct(id);
+      setExtractedProduct(null);
+      toast.success('Product deleted');
+    } catch (error) {
+      toast.error('Failed to delete product');
+    }
+  };
+
+  const handleGenerateScript = (productId: string) => {
+    // Navigate to scripts page with product pre-selected
+    window.location.hash = `#scripts?product=${productId}`;
   };
 
   const getPlatformColor = (platform: string) => {
@@ -223,6 +232,7 @@ export default function ProductExtractor() {
           {/* Actions */}
           <div className="flex gap-3 mt-6 pt-6 border-t border-white/10">
             <Button
+              onClick={() => handleGenerateScript(extractedProduct.id)}
               className="flex-1 bg-gradient-to-r from-purple to-cyan hover:opacity-90 text-white"
             >
               <Sparkles className="w-4 h-4 mr-2" />
